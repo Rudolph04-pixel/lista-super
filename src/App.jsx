@@ -58,7 +58,7 @@ const groceryList = {
     { item: "BAGUETTE", price: 1500 },
     { item: "Alambra", price: 7000 }
   ],
-  gustos: [
+  Desayuno_gustos: [
     { item: "cereal", price: 3990 },
     { item: "GALLETAS CLUB SOCIAL", price: 1789 },
     { item: "AGUA TONICA", price: 1300 },
@@ -83,7 +83,7 @@ const groceryList = {
     { item: "Vino", price: 10000 },
     { item: "panpita", price: 1650 },
     { item: "empanada hojaldre", price: 3990 },
-    { item: "rana giralose", price: 5400 },
+    
     { item: "infusion jenjibre", price: 3340 },
     { item: "café", price: 9350 },
     { item: "rucula", price: 1050 },
