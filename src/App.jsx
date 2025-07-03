@@ -5,13 +5,11 @@
 // App completa con carrito inteligente, CSV, localStorage, gráficos y modo oscuro/claro
 
 // App completa con carrito inteligente, CSV, localStorage, gráficos y modo oscuro/claro
-
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const groceryList = {
-  necesarias: [
-    { item: "Arroz preparado", price: 2420 },
+  necesarias: [{ item: "Arroz preparado", price: 2420 },
     { item: "Pastas (cualquiera)", price: 2120 },
     { item: "Ranas pasta", price: 5780 },
     { item: "Bistec pavo", price: 8790 },
@@ -67,8 +65,7 @@ const groceryList = {
     { item: "Endulzante polvo", price: 5500 },
     { item: "Extras", price: 20000 }
   ],
-  Desayuno_gustos: [
-    { item: "Cereal", price: 3990 },
+  Desayuno_gustos: [{ item: "Cereal", price: 3990 },
     { item: "Galletas Club Social", price: 1789 },
     { item: "Agua tónica", price: 1300 },
     { item: "Galletas vivo", price: 2879 },
@@ -117,14 +114,26 @@ const App = () => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
 
+  const totalByCategory = Object.keys(groceryList).map(cat => ({
+    categoria: cat,
+    total: groceryList[cat]
+      .filter(item => selectedItems.some(sel => sel.item === item.item))
+      .reduce((acc, curr) => acc + curr.price, 0)
+  }));
+
+  const totalGeneral = totalByCategory.reduce((sum, cat) => sum + cat.total, 0);
+
   const handleFinish = () => {
     const headers = ["Usuario", "Fecha", "Categoría", "Producto", "Precio"];
     const date = new Date().toLocaleDateString();
-    const csvContent = [
+    const csvRows = [
       headers.join(","),
-      ...selectedItems.map(({ item, price, category }) => `${username},${date},${category},${item},${price}`)
-    ].join("\n");
+      ...selectedItems.map(({ item, price, category }) => `${username},${date},${category},${item},${price}`),
+      `,,,,`,
+      `TOTAL GENERAL,,,$,${totalGeneral}`
+    ];
 
+    const csvContent = csvRows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -134,53 +143,99 @@ const App = () => {
     document.body.removeChild(link);
   };
 
-  const totalByCategory = Object.keys(groceryList).map(cat => ({
-    categoria: cat,
-    total: groceryList[cat].filter(item => selectedItems.some(sel => sel.item === item.item)).reduce((acc, curr) => acc + curr.price, 0)
-  }));
-
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const colors = {
+    bg: prefersDark ? "#12161C" : "#F4F6F8",
+    card: prefersDark ? "#1F252D" : "#FFFFFF",
+    text: prefersDark ? "#FFFFFF" : "#1A1A1A",
+    border: prefersDark ? "#2C3440" : "#DDE3E9",
+    accent: "#5B72F2"
+  };
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif", background: prefersDark ? "#111" : "#fff", color: prefersDark ? "#fff" : "#000" }}>
-      <h1>Lista de Supermercado</h1>
+    <div style={{ padding: 20, fontFamily: "'Helvetica Neue', sans-serif", background: colors.bg, color: colors.text }}>
+      <h1 style={{ color: colors.accent }}>🛒 Lista de Supermercado</h1>
+
       <input
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         placeholder="Nombre del usuario"
-        style={{ padding: 5, marginBottom: 10 }}
+        style={{
+          padding: 10,
+          borderRadius: 8,
+          border: `1px solid ${colors.border}`,
+          width: "100%",
+          marginBottom: 20,
+          background: colors.card,
+          color: colors.text
+        }}
       />
 
       <div style={{ display: "flex", gap: 20, overflowX: "auto" }}>
         {Object.keys(groceryList).map(cat => (
-          <div key={cat} style={{ minWidth: 250, maxHeight: 400, overflowY: "auto", border: "1px solid #ccc", padding: 10 }}>
-            <h2>{cat.toUpperCase()}</h2>
+          <div
+            key={cat}
+            style={{
+              minWidth: 260,
+              maxHeight: 420,
+              overflowY: "auto",
+              borderRadius: 12,
+              background: colors.card,
+              padding: 16,
+              border: `1px solid ${colors.border}`
+            }}
+          >
+            <h2 style={{ borderBottom: `1px solid ${colors.border}`, paddingBottom: 8 }}>{cat.toUpperCase()}</h2>
             {groceryList[cat].map((item, i) => (
               <button
                 key={i}
                 onClick={() => handleSelect(item, cat)}
-                style={{ display: "block", margin: "5px 0", width: "100%", textAlign: "left" }}
+                style={{
+                  display: "block",
+                  margin: "5px 0",
+                  width: "100%",
+                  textAlign: "left",
+                  background: "none",
+                  border: "none",
+                  padding: "6px 0",
+                  color: colors.text,
+                  cursor: "pointer"
+                }}
               >
-                ✅ {item.item}: ${item.price}
+                ✅ {item.item}: ${item.price.toLocaleString()}
               </button>
             ))}
           </div>
         ))}
       </div>
 
-      <button onClick={handleFinish} style={{ marginTop: 20, padding: 10, background: "green", color: "white" }}>
+      <button
+        onClick={handleFinish}
+        style={{
+          marginTop: 30,
+          padding: "12px 20px",
+          background: colors.accent,
+          color: "white",
+          border: "none",
+          borderRadius: 8,
+          fontWeight: "bold",
+          cursor: "pointer"
+        }}
+      >
         Lista de Compras Finalizada
       </button>
 
-      <h3>Totales por Categoría:</h3>
+      <h3 style={{ marginTop: 40 }}>📊 Totales por Categoría:</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={totalByCategory}>
-          <XAxis dataKey="categoria" />
-          <YAxis />
+          <XAxis dataKey="categoria" stroke={colors.text} />
+          <YAxis stroke={colors.text} />
           <Tooltip />
-          <Bar dataKey="total" fill="#8884d8" />
+          <Bar dataKey="total" fill={colors.accent} />
         </BarChart>
       </ResponsiveContainer>
+
+      <h2 style={{ marginTop: 20 }}>💵 Total General: ${totalGeneral.toLocaleString()}</h2>
     </div>
   );
 };
