@@ -170,7 +170,10 @@ return (
     <div style={{ display: "flex", flexDirection: "row", gap: 20, overflowX: "auto" }}>
       {["necesarias", "gustos"].map((category) => (
         <div key={category} style={{ flex: 1, minWidth: "50%" }}>
-          <h2 style={{ textAlign: "center" }}>{category.toUpperCase()}</h2>
+          <h2 style={{ textAlign: "center" }}>{category==="Desayuno_gustos"
+                                                   ?"Desayuno & Gustos"
+                                                   :category.charAt(0).toUpperCase() + category.slice(1)}
+                                               </h2>
           <div style={{ maxHeight: "65vh", overflowY: "auto", paddingRight: 10 }}>
             {filteredItems(category).map((item, i) => {
               const selected = selectedItems.some((x) => x.id === `${category}-${item.item}`);
