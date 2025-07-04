@@ -1,19 +1,9 @@
-// App mejorada con carrito inteligente, localStorage, historial, modo oscuro y dashboard
-
-// App mejorada con carrito inteligente, localStorage, historial, modo oscuro y dashboard
-
-// App completa con carrito inteligente, CSV, localStorage, gráficos y modo oscuro/claro
-
-// App completa con carrito inteligente, CSV, localStorage, gráficos y modo oscuro/claro
-// App.jsx – Lista supermercado con carrito, historial, exportación CSV y diseño Fintual
-
-// App completa con diseño tipo Fintual, carrito inteligente con cantidades y eliminación, CSV, localStorage, historial, gráficos y modo oscuro/claro + localhost para guardar listas anteriores
-
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const groceryList = {
-  necesarias: [{ item: "Arroz preparado", price: 2420 },
+  necesarias: [
+    { item: "Arroz preparado", price: 2420 },
     { item: "Pastas (cualquiera)", price: 2120 },
     { item: "Ranas pasta", price: 5780 },
     { item: "Bistec pavo", price: 8790 },
@@ -68,8 +58,10 @@ const groceryList = {
     { item: "Aliños", price: 3000 },
     { item: "Endulzante polvo", price: 5500 },
     { item: "Cebollín", price: 1500 },
-    { item: "Extras", price: 20000 }],
-  Desayuno_gustos: [{ item: "Cereal", price: 3990 },
+    { item: "Extras", price: 20000 }
+  ],
+  Desayuno_gustos: [
+    { item: "Cereal", price: 3990 },
     { item: "Galletas Club Social", price: 1789 },
     { item: "Agua tónica", price: 1300 },
     { item: "Galletas vivo", price: 2879 },
@@ -101,73 +93,39 @@ const groceryList = {
     { item: "BAGUETTE", price: 1500 },
     { item: "Alambra", price: 7000 },
     { item: "Chocolate", price: 8000 },
-    { item: "Helado", price: 6000 }]
+    { item: "Helado", price: 6000 }
+  ]
 };
 
-const App = () => {
+export default function App() {
   const [selectedItems, setSelectedItems] = useState(() => JSON.parse(localStorage.getItem("selectedItems")) || []);
   const [username, setUsername] = useState("Usuario");
-  const [showHistory, setShowHistory] = useState(false);
   const [purchaseHistory, setPurchaseHistory] = useState(() => JSON.parse(localStorage.getItem("purchaseHistory") || "[]"));
-
-  const saveToServer = async (data) => {
-    try {
-      await fetch("http://localhost:3001/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
-    } catch (err) {
-      console.error("Error al guardar en el servidor local:", err);
-    }
-  };
-
-  const handleSelect = (item, category) => {
-    const exists = selectedItems.find(sel => sel.item === item.item && sel.category === category);
-    if (exists) {
-      const updated = selectedItems.filter(sel => !(sel.item === item.item && sel.category === category));
-      setSelectedItems(updated);
-    } else {
-      setSelectedItems([...selectedItems, { ...item, category, quantity: 1 }]);
-    }
-  };
-
-  const handleQuantityChange = (index, delta) => {
-    const updated = [...selectedItems];
-    updated[index].quantity = Math.max(1, updated[index].quantity + delta);
-    setSelectedItems(updated);
-  };
-
-  const handleRemove = (index) => {
-    const updated = [...selectedItems];
-    updated.splice(index, 1);
-    setSelectedItems(updated);
-  };
 
   useEffect(() => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
 
-  const totalByCategory = Object.keys(groceryList).map(cat => {
-    const filtered = selectedItems.filter(sel => sel.category === cat);
-    const total = filtered.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
-    return { categoria: cat, total };
-  });
+  const handleSelect = (item, category) => {
+    const exists = selectedItems.find(sel => sel.item === item.item && sel.category === category);
+    if (exists) {
+      setSelectedItems(prev => prev.filter(sel => !(sel.item === item.item && sel.category === category)));
+    } else {
+      setSelectedItems(prev => [...prev, { ...item, category, quantity: 1 }]);
+    }
+  };
 
   const totalGeneral = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleFinish = () => {
-    const headers = ["Usuario", "Fecha", "Categoría", "Producto", "Precio", "Cantidad"];
     const date = new Date().toLocaleDateString();
     const csvRows = [
-      headers.join(","),
+      "Usuario,Fecha,Categoría,Producto,Precio,Cantidad",
       ...selectedItems.map(({ item, price, category, quantity }) => `${username},${date},${category},${item},${price},${quantity}`),
       `,,,,,`,
       `TOTAL GENERAL,,,,$,${totalGeneral}`
     ];
-
-    const csvContent = csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute("download", `compras_${new Date().toISOString().split("T")[0]}.csv`);
@@ -179,24 +137,38 @@ const App = () => {
     const history = [...purchaseHistory, newRecord];
     localStorage.setItem("purchaseHistory", JSON.stringify(history));
     setPurchaseHistory(history);
-
-    saveToServer(newRecord);
   };
 
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const colors = {
     bg: prefersDark ? "#12161C" : "#F4F6F8",
-    card: prefersDark ? "#1F252D" : "#FFFFFF",
-    text: prefersDark ? "#FFFFFF" : "#1A1A1A",
-    border: prefersDark ? "#2C3440" : "#DDE3E9",
-    accent: "#5B72F2"
+    text: prefersDark ? "#FFFFFF" : "#1A1A1A"
   };
 
   return (
-    <div style={{ padding: 20, fontFamily: "'Helvetica Neue', sans-serif", background: colors.bg, color: colors.text }}>
-      {/* ... interfaz principal sin cambios ... */}
+    <div style={{ padding: 20, background: colors.bg, color: colors.text, fontFamily: "'Helvetica Neue', sans-serif" }}>
+      <h1>Lista de supermercado</h1>
+      {Object.entries(groceryList).map(([category, items]) => (
+        <div key={category}>
+          <h2>{category}</h2>
+          <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #ccc", padding: 10, marginBottom: 20 }}>
+            {items.map((item, idx) => (
+              <div key={idx}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.some(sel => sel.item === item.item && sel.category === category)}
+                    onChange={() => handleSelect(item, category)}
+                  />
+                  {item.item} - ${item.price.toLocaleString()}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <h2>Total: ${totalGeneral.toLocaleString()}</h2>
+      <button onClick={handleFinish}>Finalizar compra y exportar CSV</button>
     </div>
   );
-};
-
-export default App;
+}
