@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const groceryList = {
-  Necesarias: [
-    { item: "Arroz preparado", price: 2420 },
+  Necesarias: [ { item: "Arroz preparado", price: 2420 },
     { item: "Pastas (cualquiera)", price: 2120 },
     { item: "Ranas pasta", price: 5780 },
     { item: "Bistec pavo", price: 8790 },
@@ -58,9 +57,8 @@ const groceryList = {
     { item: "Endulzante polvo", price: 5500 },
     { item: "Cebollín", price: 1500 },
     { item: "Extras", price: 20000 }
-  ],
-  Desayuno_gustos: [
-    { item: "Cereal", price: 3990 },
+ ],
+  Desayuno_gustos: [ { item: "Cereal", price: 3990 },
     { item: "Galletas Club Social", price: 1789 },
     { item: "Agua tónica", price: 1300 },
     { item: "Galletas vivo", price: 2879 },
@@ -93,18 +91,23 @@ const groceryList = {
     { item: "Alambra", price: 7000 },
     { item: "Chocolate", price: 8000 },
     { item: "Helado", price: 6000 }
-  ]
+ ]
 };
 
 export default function App() {
   const [selectedItems, setSelectedItems] = useState(() => JSON.parse(localStorage.getItem("selectedItems")) || []);
   const [username, setUsername] = useState("Usuario");
   const [purchaseHistory, setPurchaseHistory] = useState(() => JSON.parse(localStorage.getItem("purchaseHistory") || "[]"));
+  const [search, setSearch] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
   }, [selectedItems]);
+
+  useEffect(() => {
+    localStorage.setItem("purchaseHistory", JSON.stringify(purchaseHistory));
+  }, [purchaseHistory]);
 
   const handleSelect = (item, category) => {
     const exists = selectedItems.find(sel => sel.item === item.item && sel.category === category);
@@ -134,29 +137,30 @@ export default function App() {
     document.body.removeChild(link);
 
     const newRecord = { date, user: username, items: selectedItems, total: totalGeneral };
-    const history = [...purchaseHistory, newRecord];
-    localStorage.setItem("purchaseHistory", JSON.stringify(history));
-    setPurchaseHistory(history);
+    const updatedHistory = [newRecord, ...purchaseHistory].slice(0, 5);
+    setPurchaseHistory(updatedHistory);
+    setSelectedItems([]);
   };
 
-  const exportHistoryToCSV = () => {
-    if (purchaseHistory.length === 0) return;
-    const headers = ["Usuario", "Fecha", "Categoría", "Producto", "Precio", "Cantidad"];
-    const rows = [headers.join(",")];
-
-    purchaseHistory.forEach(record => {
-      record.items.forEach(({ item, price, category, quantity }) => {
-        rows.push(`${record.user},${record.date},${category},${item},${price},${quantity}`);
+  const exportHistory = () => {
+    const csv = ["Usuario,Fecha,Producto,Categoría,Precio,Cantidad"];
+    purchaseHistory.forEach(({ user, date, items }) => {
+      items.forEach(({ item, category, price, quantity }) => {
+        csv.push(`${user},${date},${item},${category},${price},${quantity}`);
       });
     });
-
-    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute("download", `historial_compras.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const clearHistory = () => {
+    setPurchaseHistory([]);
+    localStorage.removeItem("purchaseHistory");
   };
 
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -168,12 +172,13 @@ export default function App() {
   return (
     <div style={{ padding: 20, background: colors.bg, color: colors.text, fontFamily: "'Helvetica Neue', sans-serif" }}>
       <h1>Lista de supermercado</h1>
-      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nombre de usuario" style={{ marginBottom: 10 }} />
+      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nombre usuario" />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..." />
       {Object.entries(groceryList).map(([category, items]) => (
         <div key={category}>
           <h2>{category}</h2>
           <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #ccc", padding: 10, marginBottom: 20 }}>
-            {items.map((item, idx) => (
+            {items.filter(i => i.item.toLowerCase().includes(search.toLowerCase())).map((item, idx) => (
               <div key={idx}>
                 <label>
                   <input
@@ -188,25 +193,34 @@ export default function App() {
           </div>
         </div>
       ))}
+
+      <h2>Carrito</h2>
+      {selectedItems.map((item, idx) => (
+        <div key={idx}>
+          {item.item} - {item.category} - ${item.price.toLocaleString()} x {item.quantity}
+        </div>
+      ))}
+
       <h2>Total: ${totalGeneral.toLocaleString()}</h2>
       <button onClick={handleFinish}>Finalizar compra y exportar CSV</button>
-      <button onClick={() => setShowHistory(!showHistory)} style={{ marginLeft: 10 }}>Ver compras anteriores</button>
+      <button onClick={() => setShowHistory(!showHistory)}>Ver compras anteriores</button>
+
       {showHistory && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Historial de compras</h3>
-          {purchaseHistory.map((entry, idx) => (
-            <div key={idx} style={{ marginBottom: 10 }}>
-              <strong>{entry.date} - {entry.user}</strong>
+        <>
+          <h3>Historial</h3>
+          {purchaseHistory.map((record, idx) => (
+            <div key={idx}>
+              <strong>{record.date} - {record.user}</strong>
               <ul>
-                {entry.items.map((it, i) => (
-                  <li key={i}>{it.item} ({it.category}) - {it.quantity} x ${it.price}</li>
+                {record.items.map((it, i) => (
+                  <li key={i}>{it.item} ({it.category}) - ${it.price.toLocaleString()} x {it.quantity}</li>
                 ))}
               </ul>
-              <em>Total: ${entry.total}</em>
             </div>
           ))}
-          <button onClick={exportHistoryToCSV} style={{ marginTop: 10 }}>Exportar historial CSV</button>
-        </div>
+          <button onClick={exportHistory}>Exportar historial CSV</button>
+          <button onClick={clearHistory}>Eliminar historial</button>
+        </>
       )}
     </div>
   );
