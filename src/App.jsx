@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const groceryList = {
-  necesarias: [
+  Necesarias: [
     { item: "Arroz preparado", price: 2420 },
     { item: "Pastas (cualquiera)", price: 2120 },
     { item: "Ranas pasta", price: 5780 },
@@ -97,12 +97,24 @@ const groceryList = {
 };
 
 export default function App() {
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState(() => JSON.parse(localStorage.getItem("selectedItems")) || []);
+  const [username, setUsername] = useState("Usuario");
+  const [purchaseHistory, setPurchaseHistory] = useState(() => JSON.parse(localStorage.getItem("purchaseHistory") || "[]"));
+  const [search, setSearch] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
 
-  const toggleItem = (item, category) => {
-    const exists = selectedItems.find(i => i.item === item.item);
+  useEffect(() => {
+    localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
+  }, [selectedItems]);
+
+  useEffect(() => {
+    localStorage.setItem("purchaseHistory", JSON.stringify(purchaseHistory));
+  }, [purchaseHistory]);
+
+  const handleSelect = (item, category) => {
+    const exists = selectedItems.find(sel => sel.item === item.item && sel.category === category);
     if (exists) {
-      setSelectedItems(prev => prev.filter(i => i.item !== item.item));
+      setSelectedItems(prev => prev.filter(sel => !(sel.item === item.item && sel.category === category)));
     } else {
       setSelectedItems(prev => [...prev, { ...item, category, quantity: 1 }]);
     }
@@ -111,46 +123,122 @@ export default function App() {
   const updateQuantity = (itemName, delta) => {
     setSelectedItems(prev =>
       prev.map(item =>
-        item.item === itemName ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+        item.item === itemName
+          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+          : item
       )
     );
   };
 
-  const total = selectedItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
+  const totalGeneral = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handleFinish = () => {
+    const date = new Date().toLocaleDateString();
+    const csvRows = [
+      "Usuario,Fecha,Categoría,Producto,Precio,Cantidad",
+      ...selectedItems.map(({ item, price, category, quantity }) => `${username},${date},${category},${item},${price},${quantity}`),
+      `,,,,,`,
+      `TOTAL GENERAL,,,,$,${totalGeneral}`
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `compras_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    const newRecord = { date, user: username, items: selectedItems, total: totalGeneral };
+    const updatedHistory = [newRecord, ...purchaseHistory].slice(0, 5);
+    setPurchaseHistory(updatedHistory);
+    setSelectedItems([]);
+  };
+
+  const exportHistory = () => {
+    const csv = ["Usuario,Fecha,Producto,Categoría,Precio,Cantidad"];
+    purchaseHistory.forEach(({ user, date, items }) => {
+      items.forEach(({ item, category, price, quantity }) => {
+        csv.push(`${user},${date},${item},${category},${price},${quantity}`);
+      });
+    });
+    const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `historial_compras.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const clearHistory = () => {
+    setPurchaseHistory([]);
+    localStorage.removeItem("purchaseHistory");
+  };
+
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const colors = {
+    bg: prefersDark ? "#12161C" : "#F4F6F8",
+    text: prefersDark ? "#FFFFFF" : "#1A1A1A"
+  };
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
-      <h1>Lista de Supermercado</h1>
-
+    <div style={{ padding: 20, background: colors.bg, color: colors.text, fontFamily: "'Helvetica Neue', sans-serif" }}>
+      <h1>Lista de supermercado</h1>
+      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nombre usuario" />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..." />
       {Object.entries(groceryList).map(([category, items]) => (
         <div key={category}>
           <h2>{category}</h2>
-          <ul style={{ maxHeight: 200, overflowY: "scroll", border: "1px solid #ccc", padding: 10 }}>
-            {items.map(item => (
-              <li key={item.item}>
-                <input
-                  type="checkbox"
-                  checked={selectedItems.some(i => i.item === item.item)}
-                  onChange={() => toggleItem(item, category)}
-                />
-                {item.item} (${item.price})
-              </li>
+          <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #ccc", padding: 10, marginBottom: 20 }}>
+            {items.filter(i => i.item.toLowerCase().includes(search.toLowerCase())).map((item, idx) => (
+              <div key={idx}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.some(sel => sel.item === item.item && sel.category === category)}
+                    onChange={() => handleSelect(item, category)}
+                  />
+                  {item.item} - ${item.price.toLocaleString()}
+                </label>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       ))}
 
       <h2>Carrito</h2>
       <ul>
-        {selectedItems.map(item => (
+        {selectedItems.map((item) => (
           <li key={item.item}>
-            {item.item} - ${item.price} x {item.quantity} = ${item.price * item.quantity}
+            {item.item} - {item.category} - ${item.price} x {item.quantity} = ${item.price * item.quantity}
             <button onClick={() => updateQuantity(item.item, 1)}>+</button>
             <button onClick={() => updateQuantity(item.item, -1)}>-</button>
           </li>
         ))}
       </ul>
-      <h3>Total: ${total}</h3>
+
+      <h2>Total: ${totalGeneral.toLocaleString()}</h2>
+      <button onClick={handleFinish}>Finalizar compra y exportar CSV</button>
+      <button onClick={() => setShowHistory(!showHistory)}>Ver compras anteriores</button>
+
+      {showHistory && (
+        <>
+          <h3>Historial</h3>
+          {purchaseHistory.map((record, idx) => (
+            <div key={idx}>
+              <strong>{record.date} - {record.user}</strong>
+              <ul>
+                {record.items.map((it, i) => (
+                  <li key={i}>{it.item} ({it.category}) - ${it.price.toLocaleString()} x {it.quantity}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <button onClick={exportHistory}>Exportar historial CSV</button>
+          <button onClick={clearHistory}>Eliminar historial</button>
+        </>
+      )}
     </div>
   );
 }
+
