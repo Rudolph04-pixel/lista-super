@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const groceryList = {
-  necesarias: [
+  Necesarias: [
     { item: "Arroz preparado", price: 2420 },
     { item: "Pastas (cualquiera)", price: 2120 },
     { item: "Ranas pasta", price: 5780 },
@@ -101,6 +100,7 @@ export default function App() {
   const [selectedItems, setSelectedItems] = useState(() => JSON.parse(localStorage.getItem("selectedItems")) || []);
   const [username, setUsername] = useState("Usuario");
   const [purchaseHistory, setPurchaseHistory] = useState(() => JSON.parse(localStorage.getItem("purchaseHistory") || "[]"));
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
@@ -139,6 +139,26 @@ export default function App() {
     setPurchaseHistory(history);
   };
 
+  const exportHistoryToCSV = () => {
+    if (purchaseHistory.length === 0) return;
+    const headers = ["Usuario", "Fecha", "Categoría", "Producto", "Precio", "Cantidad"];
+    const rows = [headers.join(",")];
+
+    purchaseHistory.forEach(record => {
+      record.items.forEach(({ item, price, category, quantity }) => {
+        rows.push(`${record.user},${record.date},${category},${item},${price},${quantity}`);
+      });
+    });
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `historial_compras.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const colors = {
     bg: prefersDark ? "#12161C" : "#F4F6F8",
@@ -148,6 +168,7 @@ export default function App() {
   return (
     <div style={{ padding: 20, background: colors.bg, color: colors.text, fontFamily: "'Helvetica Neue', sans-serif" }}>
       <h1>Lista de supermercado</h1>
+      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nombre de usuario" style={{ marginBottom: 10 }} />
       {Object.entries(groceryList).map(([category, items]) => (
         <div key={category}>
           <h2>{category}</h2>
@@ -169,6 +190,24 @@ export default function App() {
       ))}
       <h2>Total: ${totalGeneral.toLocaleString()}</h2>
       <button onClick={handleFinish}>Finalizar compra y exportar CSV</button>
+      <button onClick={() => setShowHistory(!showHistory)} style={{ marginLeft: 10 }}>Ver compras anteriores</button>
+      {showHistory && (
+        <div style={{ marginTop: 20 }}>
+          <h3>Historial de compras</h3>
+          {purchaseHistory.map((entry, idx) => (
+            <div key={idx} style={{ marginBottom: 10 }}>
+              <strong>{entry.date} - {entry.user}</strong>
+              <ul>
+                {entry.items.map((it, i) => (
+                  <li key={i}>{it.item} ({it.category}) - {it.quantity} x ${it.price}</li>
+                ))}
+              </ul>
+              <em>Total: ${entry.total}</em>
+            </div>
+          ))}
+          <button onClick={exportHistoryToCSV} style={{ marginTop: 10 }}>Exportar historial CSV</button>
+        </div>
+      )}
     </div>
   );
 }
